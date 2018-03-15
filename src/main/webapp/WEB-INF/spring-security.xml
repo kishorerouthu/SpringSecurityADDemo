@@ -1,0 +1,102 @@
+<beans xsi:schemaLocation="http://www.springframework.org/schema/beans
+            http://www.springframework.org/schema/beans/spring-beans.xsd
+            http://www.springframework.org/schema/security
+            http://www.springframework.org/schema/security/spring-security.xsd"
+
+       xmlns="http://www.springframework.org/schema/beans"
+       xmlns:security="http://www.springframework.org/schema/security"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+    <security:http auto-config="false"  authentication-manager-ref="authenticationManager" entry-point-ref="authEntryPoint">
+        <security:intercept-url pattern="/j_spring_security_check" access="permitAll"/>
+        <security:intercept-url pattern="/j_spring_security_logout" access="isAuthenticated()"/>
+        <security:intercept-url pattern="/home" access="isAuthenticated()"/>
+        <security:intercept-url pattern="/login" access="permitAll"/>
+        <security:intercept-url pattern="/" access="isAuthenticated()"/>
+        <security:intercept-url pattern="/**" access="isAuthenticated()"/>
+        <security:csrf disabled="true"/>
+        <security:custom-filter ref="logoutFilter" position="LOGOUT_FILTER"/>
+        <security:custom-filter ref="authenticationFilter" position="FORM_LOGIN_FILTER"/>
+    </security:http>
+
+    <security:authentication-manager id="authenticationManager">
+        <security:authentication-provider ref="authenticationProvider"/>
+    </security:authentication-manager>
+
+    <bean id="authEntryPoint" class="org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint">
+        <constructor-arg value="/login"/>
+    </bean>
+
+    <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="locations">
+            <list>
+                <value>classpath:adConfig.properties</value>
+            </list>
+        </property>
+    </bean>
+    <!-- Filters Configuration -->
+        <!-- Authentication Filter -->
+    <bean id="authenticationFilter" class="org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter">
+        <property name="authenticationSuccessHandler" ref="authenticationSuccessHandler"/>
+        <property name="authenticationFailureHandler" ref="authenticationFailureHandler"/>
+        <property name="authenticationManager" ref="authenticationManager"/>
+        <property name="usernameParameter" value="j_username"/>
+        <property name="passwordParameter" value="j_password"/>
+        <property name="filterProcessesUrl" value="/j_spring_security_check"/>
+    </bean>
+
+        <!-- Logout Filter -->
+    <bean id="logoutFilter" class="org.springframework.security.web.authentication.logout.LogoutFilter">
+        <constructor-arg index="0" ref="logoutSuccessHandler"/>
+        <constructor-arg index="1">
+            <list>
+                <ref bean="securityContextLogoutHandler"/>
+            </list>
+        </constructor-arg>
+        <property name="filterProcessesUrl" value="/j_spring_security_logout"/>
+    </bean>
+
+    <!-- Handler Configuration -->
+        <!-- Logout Handlers -->
+    <bean id="logoutSuccessHandler" class="org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler">
+        <property name="defaultTargetUrl" value="/login"/>
+    </bean>
+    <bean id="securityContextLogoutHandler" class="org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler"/>
+
+        <!-- Authentication Handlers -->
+    <bean id="authenticationSuccessHandler" class="org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler">
+        <property name="defaultTargetUrl" value="/home"/>
+    </bean>
+    <bean id="authenticationFailureHandler" class="org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler">
+        <property name="defaultFailureUrl" value="/login"/>
+    </bean>
+
+    <!-- Authentication Provider Configuration -->
+    <bean id="authenticationProvider" class="com.css.spring.security.ActiveDirectoryAuthenticationProvider">
+        <constructor-arg index="0" value="${ad.domain}"/>
+        <constructor-arg index="1" value="${ad.url}"/>
+        <constructor-arg index="2" value="${ad.rootDn}"/>
+        <property name="userSearchPattern" value="${ad.userSearchPattern}"/>
+        <property name="authoritiesPopulator" ref="authoritiesPopulator"/>
+        <property name="authoritiesMapper" ref="authoritiesMapper"/>
+    </bean>
+
+    <bean id="authoritiesMapper" class="org.springframework.security.core.authority.mapping.SimpleAuthorityMapper">
+        <property name="defaultAuthority">
+            <value>ROLE_DEFAULT_NO_ROLES</value>
+        </property>
+        <property name="prefix">
+            <value>ROLE_</value>
+        </property>
+        <property name="convertToUpperCase">
+            <value>false</value>
+        </property>
+    </bean>
+
+    <bean id="userDetailsContextMapper" class="org.springframework.security.ldap.userdetails.LdapUserDetailsMapper"/>
+
+    <bean id="authoritiesPopulator" class="com.css.spring.security.authorities.DefaultActiveDirectoryAuthoritiesPopulator">
+        <property name="groupRoleAttribute" value="${ad.groupRoleAttribute}"/>
+    </bean>
+
+</beans>
